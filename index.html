@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<!-- Prevent iOS Safari zoom-on-focus + double-tap zoom -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>Indoor Putting — Practice & Stats</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#1a1f24; --panel-2:#11161b; --text:#e8ecf1;
+    --muted:#9aa7b2; --accent:#2ea043; --accent-2:#3b82f6; --btn:#2b3138; --btn-active:#355043;
+    --border:#2a3138; --radius:14px; color-scheme:dark; --nav-h:64px;
+  }
+  *{box-sizing:border-box}
+  html,body{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,Inter,Arial,sans-serif;
+    padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 8px);}
+  input,select,textarea{font-size:16px!important} /* prevent iOS zoom */
+  .wrap{max-width:420px;margin:0 auto;padding:12px}
+  .hidden{display:none}
+  h1{margin:0 0 6px;font-size:20px;font-weight:800;text-align:center}
+  h2{margin:0 0 8px;font-size:14px;color:var(--muted);font-weight:700}
+  .muted{color:var(--muted);font-size:13px}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin:6px 0}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .span2{grid-column:1 / -1}
+  .field{display:grid;gap:6px}
+  .lbl{font-size:12px;color:var(--muted);font-weight:700}
+  .input,.pill{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;color:var(--text);display:flex;align-items:center;justify-content:space-between}
+  .input{position:relative}
+  .input input,.input select{background:transparent;border:none;outline:none;color:var(--text);width:100%}
+  .input select{position:relative;z-index:2;pointer-events:auto;-webkit-appearance:menulist;appearance:menulist;height:40px}
+  .btn{background:var(--btn);color:var(--text);border:1px solid var(--border);padding:10px 12px;border-radius:12px;cursor:pointer;display:inline-flex;gap:8px;align-items:center;justify-content:center;font-weight:800;text-decoration:none;touch-action:manipulation}
+  .btn.full{width:100%}
+  .btn.primary{background:var(--accent-2);color:#fff;border:none}
+  .btn.success{background:var(--accent);color:#031;border:none}
+  .btn.danger{background:linear-gradient(180deg, #991b1b, #450a0a); color:#fff; border-color:#5f0a0a}
+  .chips{display:flex;gap:10px;flex-wrap:wrap}
+  .pill{padding:10px 12px;border-radius:14px;cursor:pointer;color:#9aa7b2}
+  .pill.active{outline:2px solid var(--accent)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{padding:10px 8px;border-bottom:1px solid var(--border);text-align:left}
+  th{color:#fff;font-weight:700}
+  th.right,td.right{text-align:right}
+  .tight th,.tight td{padding:8px}
+
+  /* Steppers */
+  .stepper{display:grid;grid-template-columns:36px minmax(0,1fr) 36px;gap:8px;align-items:center}
+  .stepper .step{width:36px;height:36px;background:var(--btn);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation}
+  .readout{display:flex;align-items:center;justify-content:center;gap:6px;font-weight:800;font-size:20px}
+  .readout input.readnum{width:clamp(48px,18vw,72px);text-align:center;background:transparent;border:none;outline:none;color:var(--text);font-weight:800;font-size:20px}
+  .unit{font-weight:700;font-size:14px;opacity:.9}
+
+  /* Mini variant */
+  .stepper.mini{grid-template-columns:28px minmax(0,1fr) 28px;gap:6px}
+  .stepper.mini .step{width:28px;height:28px;border-radius:8px}
+  .readout.mini{font-size:18px}
+  .readout.mini input.readnum{width:42px;font-size:18px}
+
+  /* Bottom nav */
+  .appnav{position:fixed;left:0;right:0;bottom:0;z-index:50;background:#fff;border-top:1px solid #e6ebf1;height:var(--nav-h);backdrop-filter:blur(8px)}
+  .appnav .row{max-width:680px;margin:0 auto;padding:8px 12px;display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+  .appnav button{appearance:none;border:none;background:transparent;color:#6b7280;display:flex;flex-direction:column;align-items:center;gap:4px;border-radius:12px;padding:6px 8px;font-weight:800;cursor:pointer}
+  .appnav button .ico{width:22px;height:22px;display:block}
+  .appnav button .lbl{font-size:11px}
+  .appnav button.active{color:#111827;background:rgba(0,0,0,.06)}
+
+  /* Session scoreboard */
+  .board{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px}
+  .tile{background:#0e1712;border:1px solid #233028;border-radius:12px;padding:8px;text-align:center}
+  .tile .k{font-size:11px;color:#a5b0b7;letter-spacing:.06em;font-weight:700}
+  .tile .v{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;font-size:22px;font-weight:900;letter-spacing:.03em;color:#d6ffb7}
+
+  .prevrow{display:flex;align-items:center;justify-content:space-between}
+  .prevbox{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .badge{border:1px solid var(--border);background:var(--panel-2);padding:6px 8px;border-radius:8px;font-weight:800}
+
+  /* Drill-gating */
+  #page-session .only-random{display:none}
+  #page-session[data-drill="random"] .only-random{display:grid}
+  #page-session .only-onehand{display:none}
+  #page-session[data-drill="onehand"] .only-onehand{display:block}
+  #page-session .only-straight{display:none}
+  #page-session[data-drill="straight"] .only-straight,
+  #page-session[data-drill="onehand"]  .only-straight{display:block}
+
+  /* Modals */
+  .modal{position:fixed;inset:0;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.45);z-index:100;padding:12px}
+  .modal.show{display:flex}
+  .modal .card{width:min(420px,92vw);background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  /* Center the "How much?" dialog (kept for compatibility) */
+  #depthModal{align-items:center}
+
+  /* === Split-pad with inline inch steppers === */
+  .pad-split{display:grid;grid-template-columns:1.6fr 1fr;gap:10px;margin-top:10px}
+  .lr-card{
+    position:relative;border:1px solid var(--border);border-radius:16px;overflow:hidden;
+    min-height:180px;background:linear-gradient(180deg,#14532d 0%, #0e3b23 55%, #052e16 100%);
+    display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;
+  }
+  .lr-card .half{
+    appearance:none;border:none;background:transparent;color:#d6ffb7;
+    font-weight:900;font-size:18px;letter-spacing:.02em;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    padding:14px 10px;cursor:pointer;outline-offset:3px;width:100%;touch-action:manipulation
+  }
+  .lr-card .half.left{border-right:1px solid rgba(255,255,255,.08)}
+  .lr-card .half.right{border-left:1px solid rgba(255,255,255,.08)}
+  .lr-card .half:active{ transform:translateY(1px) }
+  .lr-card .half:focus-visible{ outline:3px solid var(--accent-2) }
+  .midreadout{
+    display:flex;align-items:center;justify-content:center;padding:0 8px;min-width:70px
+  }
+  .midreadout .num{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:22px;font-weight:900;color:#d6ffb7;letter-spacing:.02em
+  }
+
+  .stack{display:grid;grid-template-rows:1fr auto 1fr;gap:10px}
+  .stack-btn{
+    appearance:none;width:100%;border-radius:16px;border:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    padding:14px 10px;font-weight:900;font-size:18px;cursor:pointer;outline-offset:3px;touch-action:manipulation
+  }
+  .stack-btn:active{ transform:translateY(1px) }
+  .stack-btn:focus-visible{ outline:3px solid var(--accent-2) }
+  .stack-btn.long,.stack-btn.short{ background:linear-gradient(180deg, #fde68a, #f59e0b); color:#000 }
+  .stack .midreadout .num{color:#fff}
+
+  /* Action row: Holed / Log Miss / Undo */
+  .actions3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px}
+  .btn.finish{background:linear-gradient(180deg,#fde047,#facc15);color:#111;border:none}
+
+  /* Bottom CTAs */
+  .ctas{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+  .btn.cta{height:56px;padding:16px 12px;font-weight:900;font-size:16px;border-radius:14px}
+
+  /* Randomizer: show Stimp on right column */
+  #page-session[data-drill="random"] #stimpField{grid-column:2}
+
+  @media (max-width:380px){
+    .stepper{grid-template-columns:32px minmax(0,1fr) 32px}
+    .stepper .step{width:32px;height:32px}
+    .readout input.readnum{width:clamp(42px,22vw,60px);font-size:18px}
+    .stepper.mini{grid-template-columns:26px minmax(0,1fr) 26px}
+    .stepper.mini .step{width:26px;height:26px}
+    .readout.mini input.readnum{width:40px}
+    .lr-card{min-height:160px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= PAGES ================= -->
+<!-- HOME -->
+<section id="page-home" class="wrap">
+  <h1>⛳️ Indoor Putting</h1>
+  <div class="panel">
+    <p class="muted" style="margin-top:0">Focused indoor putting practice — simple tracking with sessions & stats.</p>
+    <div class="row">
+      <button class="btn primary" data-go="session" data-drill="straight">Straight Putt</button>
+      <button class="btn primary" data-go="session" data-drill="random">Randomizer</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn primary" data-go="session" data-drill="onehand">One-handed</button>
+      <button class="btn" data-go="stats">Open Stats</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Notes</h2>
+    <ul class="muted" style="margin:8px 0 0 18px;line-height:1.5">
+      <li>Default distances: <b>1–9 ft</b>; customize up to <b>30 ft</b> in <b>0.5-ft</b> steps.</li>
+      <li>Miss details include <b>Short/Long & Left/Right inches</b> for trend insights.</li>
+      <li>Stats buckets use <b>starting distance</b> (not leave).</li>
+      <li>CSV (session & stats) + JSON export/import (import replaces all data).</li>
+    </ul>
+  </div>
+
+  <div class="panel muted" style="text-align:center">© <span id="yr"></span> Indoor Putting</div>
+</section>
+
+<!-- SESSION -->
+<section id="page-session" class="wrap hidden" data-drill="straight">
+  <h1 id="sessTitle">Straight Putt Drill</h1>
+
+  <!-- Setup -->
+  <div class="panel" id="setupCard">
+    <div class="grid2">
+      <div class="field">
+        <span class="lbl">Drill</span>
+        <div class="input"><select id="drillPick">
+          <option value="straight">Straight Putt</option>
+          <option value="random">Randomizer</option>
+          <option value="onehand">One-handed</option>
+        </select></div>
+      </div>
+      <div class="field only-onehand" id="handField">
+        <span class="lbl">Hand</span>
+        <div class="input"><select id="handPick">
+          <option value="right">Right</option>
+          <option value="left">Left</option>
+        </select></div>
+      </div>
+    </div>
+
+    <!-- Distance + Stimp -->
+    <div class="row" id="distStimpRow" style="margin-top:6px">
+      <div class="field only-straight">
+        <span class="lbl">Distance (ft)</span>
+        <div class="stepper mini">
+          <button class="step" id="sdn">−</button>
+          <div class="readout mini"><input id="sDist" class="readnum" value="7" inputmode="decimal"/><span class="unit">ft</span></div>
+          <button class="step" id="sup">＋</button>
+        </div>
+      </div>
+      <div class="field" id="stimpField">
+        <span class="lbl">Stimp</span>
+        <div class="stepper mini">
+          <button class="step" id="stimpDn">−</button>
+          <div class="readout mini"><input id="stimp" class="readnum" value="10" inputmode="decimal"/><span class="unit">st</span></div>
+          <button class="step" id="stimpUp">＋</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Randomizer only -->
+    <div id="randRow" class="grid2 only-random" style="margin-top:6px">
+      <div class="field">
+        <span class="lbl">Min (ft)</span>
+        <div class="stepper">
+          <button class="step" id="rminDn">−</button>
+          <div class="readout"><input id="rMin" class="readnum" value="1" inputmode="decimal"/><span class="unit">ft</span></div>
+          <button class="step" id="rminUp">＋</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="lbl">Max (ft)</span>
+        <div class="stepper">
+          <button class="step" id="rmaxDn">−</button>
+          <div class="readout"><input id="rMax" class="readnum" value="9" inputmode="decimal"/><span class="unit">ft</span></div>
+          <button class="step" id="rmaxUp">＋</button>
+        </div>
+      </div>
+    </div>
+    <div id="randOpts" class="grid2 only-random">
+      <div class="field">
+        <span class="lbl">No back-to-back repeats</span>
+        <div class="chips" id="norepeatChips">
+          <div class="pill active" data-on="1">ON</div>
+          <div class="pill" data-on="0">OFF</div>
+        </div>
+      </div>
+      <div class="field">
+        <span class="lbl">Current random distance</span>
+        <div class="input" id="randNow">—</div>
+      </div>
+    </div>
+
+    <!-- Begin/Back -->
+    <div class="row" style="margin-top:6px;align-items:end">
+      <div class="field">
+        <span class="lbl"> </span>
+        <button class="btn success" id="beginBtn">Begin</button>
+      </div>
+      <div class="field">
+        <span class="lbl"> </span>
+        <button class="btn" data-go="home">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Running drill -->
+  <div class="panel hidden" id="runCard">
+    <div class="board">
+      <div class="tile"><div class="k">HIT FROM (ft)</div><div class="v" id="boardDist">—</div></div>
+      <div class="tile"><div class="k">TIME</div><div class="v" id="boardTime">00:00</div></div>
+      <div class="tile"><div class="k">SCORE</div><div class="v" id="boardScore">0</div></div>
+    </div>
+    <div class="tile" style="margin-top:8px"><div class="k">SHOT</div><div class="v" id="boardShot">0</div></div>
+
+    <!-- Previous Shot block (hidden) -->
+    <div class="panel hidden" style="margin:10px 0;background:#0a1410;border-color:#1b2620">
+      <div class="prevrow">
+        <h2 style="margin:0">Previous Shot</h2>
+        <button class="btn small" id="prevToggle">show</button>
+      </div>
+      <div id="prevBox" class="hidden" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+        <span class="badge" id="prevMade">—</span>
+        <span class="badge" id="prevDepth">—</span>
+        <span class="badge" id="prevLat">—</span>
+        <span class="badge" id="prevLeave">—</span>
+      </div>
+    </div>
+
+    <!-- SPLIT PAD: L/R with inches + Short/Long with inches -->
+    <div class="pad-split" aria-label="Action pad">
+      <!-- Left / value / Right -->
+      <div class="lr-card" role="group" aria-label="Left or Right">
+        <button class="half left" id="padLeft" aria-label="Left miss"><span aria-hidden="true">←</span><span>Left</span></button>
+        <div class="midreadout"><span id="latRead" class="num">0″</span></div>
+        <button class="half right" id="padRight" aria-label="Right miss"><span>Right</span><span aria-hidden="true">→</span></button>
+      </div>
+      <!-- Long / value / Short -->
+      <div class="stack" role="group" aria-label="Depth">
+        <button class="stack-btn long"  id="padLong"><span aria-hidden="true">↑</span>Long</button>
+        <div class="midreadout"><span id="depRead" class="num">0″</span></div>
+        <button class="stack-btn short" id="padShort"><span aria-hidden="true">↓</span>Short</button>
+      </div>
+    </div>
+
+    <!-- Holed / Log Miss / Undo -->
+    <div class="actions3">
+      <button class="btn success" id="padHoled">Holed</button>
+      <button class="btn primary" id="logMiss">Log Miss</button>
+      <button class="btn" id="undoLast">Undo Last</button>
+    </div>
+
+    <!-- Quit / Finish -->
+    <div class="ctas">
+      <button class="btn cta danger" id="padQuit">Quit</button>
+      <button class="btn cta finish" id="finishSession">Finish Drill</button>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="panel hidden" id="logPanel">
+    <h2>Log</h2>
+    <table class="tight">
+      <thead><tr><th>#</th><th>Date</th><th>Dist</th><th>Made</th><th>Depth (in)</th><th>Lat (in)</th><th>Leave (ft)</th></tr></thead>
+      <tbody id="logBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- STATS -->
+<section id="page-stats" class="wrap hidden">
+  <h1>Stats</h1>
+
+  <div class="panel">
+    <div class="grid2">
+      <div class="field">
+        <span class="lbl">Session</span>
+        <div class="input"><select id="sessionPick"><option value="">All sessions</option></select></div>
+      </div>
+      <div class="field">
+        <span class="lbl">Drill</span>
+        <div class="input"><select id="fltDrill"><option value="">All</option><option value="straight">Straight</option><option value="random">Randomizer</option><option value="onehand">One-handed</option></select></div>
+      </div>
+    </div>
+    <div class="grid2" style="margin-top:6px">
+      <div class="field">
+        <span class="lbl">Hand</span>
+        <div class="input"><select id="fltHand"><option value="">All</option><option value="left">Left</option><option value="right">Right</option></select></div>
+      </div>
+      <div class="field">
+        <span class="lbl">Stimp</span>
+        <div class="input"><select id="fltStimp"><option value="" selected>Any</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option></select></div>
+      </div>
+    </div>
+    <!-- Actions: Open + Delete -->
+    <div class="row" style="margin-top:6px">
+      <button class="btn" id="btnOpenSession" disabled>Open Session</button>
+      <button class="btn danger" id="btnDeleteSession" disabled>Delete Session</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel"><h2 style="margin-bottom:6px">Total Putts</h2><div style="font-size:32px;font-weight:900;text-align:center" id="kpiPutts">–</div></div>
+    <div class="panel"><h2 style="margin-bottom:6px">Avg Miss Leave (in)</h2><div style="font-size:32px;font-weight:900;text-align:center" id="kpiAvgLeave">–</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>Distance Buckets (by starting distance)</h2>
+    <table class="tight">
+      <thead><tr><th>Bucket (ft)</th><th class="right"># of Putts</th><th class="right">Longest Streak</th><th class="right">Make%</th></tr></thead>
+      <tbody id="bucketRows"></tbody>
+    </table>
+    <p class="muted" id="bucketNote" style="margin-top:6px">Buckets use the putt’s starting distance. “10+” appears automatically when you log &gt;10 ft.</p>
+  </div>
+
+  <!-- Session Details -->
+  <div class="panel hidden" id="sessionDetailsPanel">
+    <h2 id="sdTitle">Session Details</h2>
+    <div id="sdMeta" class="muted" style="margin-top:6px"></div>
+    <table class="tight" style="margin-top:8px">
+      <thead><tr><th>#</th><th>Time</th><th>Dist</th><th>Made</th><th>Depth (in)</th><th>Lat (in)</th><th>Leave (ft)</th></tr></thead>
+      <tbody id="sdBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- BOTTOM NAV -->
+<nav class="appnav" id="appnav" aria-label="App navigation">
+  <div class="row">
+    <button data-nav="#/home">
+      <svg class="ico" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3z"/></svg>
+      <span class="lbl">Home</span>
+    </button>
+    <button data-nav="#/session">
+      <svg class="ico" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/></svg>
+      <span class="lbl">Session</span>
+    </button>
+    <button data-nav="#/new">
+      <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span class="lbl">New</span>
+    </button>
+    <button data-nav="#/stats">
+      <svg class="ico" viewBox="0 0 24 24" fill="currentColor"><path d="M5 9h3v10H5zM10.5 5H14v14h-3.5zM16 12h3v7h-3z"/></svg>
+      <span class="lbl">Stats</span>
+    </button>
+    <button data-nav="#/more">
+      <svg class="ico" viewBox="0 0 24 24" fill="currentColor"><path d="M6 12a2 2 0 114 0 2 2 0 01-4 0zm4 0a2 2 0 114 0 2 2 0 01-4 0zm4 0a2 2 0 114 0 2 2 0 01-4 0z"/></svg>
+      <span class="lbl">More</span>
+    </button>
+  </div>
+</nav>
+
+<!-- Depth mini modal (kept for future, unused now) -->
+<div id="depthModal" class="modal" aria-hidden="true">
+  <div class="card">
+    <h2 style="margin-bottom:6px">How much?</h2>
+    <div class="stepper">
+      <button class="step" id="depDn">−</button>
+      <div class="readout"><input id="depthAmount" class="readnum" value="0.5" inputmode="decimal"/><span class="unit">ft</span></div>
+      <button class="step" id="depUp">＋</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn" id="depCancel">Cancel</button>
+      <button class="btn success" id="depSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MORE SHEET -->
+<div id="moreSheet" class="modal" aria-hidden="true">
+  <div class="card" style="max-width:420px">
+    <div class="row">
+      <button id="msExportSession">Export CSV (Session)</button>
+      <button id="msExportStats">Export CSV (Stats)</button>
+      <button id="msExportJSON">Export JSON</button>
+      <button id="msImportJSON">Import JSON (Replace)</button>
+      <button id="msClose">Close</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="importJSONInput" accept="application/json" hidden/>
+
+<script>
+(function(){
+  /* ===== Helpers ===== */
+  const pad2=n=>String(n).padStart(2,'0');
+  const fmtDate=(d)=>`${pad2(d.getMonth()+1)}-${pad2(d.getDate())}-${d.getFullYear()}`;
+  const fmtDot=(d)=>`${pad2(d.getMonth()+1)}.${pad2(d.getDate())}.${d.getFullYear()}`;
+  const fmtTime=(d)=>`${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  const fmtDur=(secs)=>{const h=Math.floor(secs/3600), m=Math.floor((secs%3600)/60), s=secs%60; return h?`${h}:${pad2(m)}:${pad2(s)}`:`${m}:${pad2(s)}`;};
+  const r05=v=>Math.round((Number(v)||0)*2)/2;
+  const nowISO=()=>new Date().toISOString();
+  const sanitizeCsvCell=(cell)=>{let s=String(cell??"").replace(/\r/g,"").replace(/\n/g," ");
+    const t=s.trim();const isNum=/^-?\d+(\.\d+)?$/.test(t);if(!isNum&&/^[=+\-@]/.test(t))s="'"+s;
+    if(/[",]/.test(s))s='"'+s.replace(/"/g,'""')+'"';return s;};
+  const download=(filename,blob)=>{const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;a.rel='noopener';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);};
+  document.getElementById('yr').textContent=(new Date()).getFullYear();
+  function $(q){return document.querySelector(q)}
+  function $all(q){return Array.from(document.querySelectorAll(q))}
+
+  /* ===== Routing ===== */
+  const PAGES={home:$('#page-home'), session:$('#page-session'), stats:$('#page-stats')};
+  function show(hash){
+    const route=(hash||'#/home').split('?')[0];
+    Object.values(PAGES).forEach(el=>el.classList.add('hidden'));
+    if(route==="#/session"){ PAGES.session.classList.remove('hidden'); ensureSetupVisibility(); }
+    else if(route==="#/stats"){ PAGES.stats.classList.remove('hidden'); initStats(); }
+    else PAGES.home.classList.remove('hidden');
+    setActiveNav(route);
+  }
+  function setActiveNav(route){$all('#appnav [data-nav]').forEach(b=> b.classList.toggle('active', b.dataset.nav===route));}
+  window.addEventListener('hashchange', ()=> show(location.hash));
+  $('#appnav').addEventListener('click',(e)=>{
+    const b=e.target.closest('button[data-nav]'); if(!b) return;
+    if(b.dataset.nav==="#/more"){toggleSheet(true);return;}
+    if(b.dataset.nav==="#/new"){ location.hash='#/session'; return; }
+    location.hash=b.dataset.nav;
+  });
+  $all('[data-go="session"]').forEach(btn=>{
+    btn.onclick=()=>{location.hash=`#/session?drill=${encodeURIComponent(btn.dataset.drill||'straight')}`;}
+  });
+  $all('[data-go="stats"]').forEach(b=> b.onclick=()=> location.hash='#/stats');
+  $all('[data-go="home"]').forEach(b=> b.onclick=()=> location.hash='#/home');
+  show(location.hash||'#/home');
+
+  /* ===== IndexedDB ===== */
+  const DB='indoor_putting';
+  function openDB(){
+    return new Promise((res,rej)=>{
+      const req=indexedDB.open(DB,1);
+      req.onupgradeneeded=()=>{
+        const db=req.result;
+        if(!db.objectStoreNames.contains('sessions')) db.createObjectStore('sessions',{keyPath:'id'});
+        if(!db.objectStoreNames.contains('putts')){
+          const st=db.createObjectStore('putts',{keyPath:'uid',autoIncrement:true});
+          st.createIndex('by_session','sessionId',{unique:false});
+        }
+      };
+      req.onsuccess=()=>res(req.result); req.onerror=()=>rej(req.error);
+    });
+  }
+  function idbAdd(store,val){return new Promise((res,rej)=>{const r=store.add(val); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);});}
+  async function idbAll(name){
+    const db=await openDB();
+    return new Promise((res,rej)=>{
+      const tx=db.transaction(name,'readonly'); const st=tx.objectStore(name); const out=[];
+      st.openCursor().onsuccess=e=>{const c=e.target.result; if(c){out.push(c.value); c.continue();} else{db.close(); res(out);} };
+      tx.onerror=()=>rej(tx.error);
+    });
+  }
+  async function idbGetPuttsBySession(sessionId){
+    const db=await openDB();
+    return new Promise((res,rej)=>{
+      const tx=db.transaction('putts','readonly'); const idx=tx.objectStore('putts').index('by_session');
+      const q=IDBKeyRange.only(sessionId); const out=[];
+      idx.openCursor(q).onsuccess=e=>{const c=e.target.result; if(c){out.push(c.value); c.continue();} else{db.close(); res(out);} };
+      tx.onerror=()=>rej(tx.error);
+    });
+  }
+  async function idbDeleteSessionCascade(sessionId){
+    const db=await openDB();
+    return new Promise((res,rej)=>{
+      const tx=db.transaction(['sessions','putts'],'readwrite');
+      const stS=tx.objectStore('sessions'); const stP=tx.objectStore('putts');
+      stS.delete(sessionId);
+      const idx=stP.index('by_session');
+      const req=idx.openCursor(IDBKeyRange.only(sessionId));
+      req.onsuccess=(e)=>{const c=e.target.result; if(c){ c.delete(); c.continue(); } };
+      tx.oncomplete=()=>{ db.close(); res(); };
+      tx.onerror=()=>{ const err=tx.error||new Error('delete failed'); db.close(); rej(err); };
+      tx.onabort =()=>{ const err=new Error('delete aborted'); db.close(); rej(err); };
+    });
+  }
+  function deleteWholeDB(){return new Promise((res,rej)=>{const r=indexedDB.deleteDatabase(DB); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); r.onblocked=()=>alert('Close other tabs to finish importing.');});}
+
+  /* ===== Session UI ===== */
+  const pageSession = $('#page-session');
+  const ui={
+    drillPick:$('#drillPick'), handPick:$('#handPick'),
+    sdn:$('#sdn'), sup:$('#sup'), sDist:$('#sDist'),
+    rminDn:$('#rminDn'), rminUp:$('#rminUp'), rMin:$('#rMin'),
+    rmaxDn:$('#rmaxDn'), rmaxUp:$('#rmaxUp'), rMax:$('#rMax'),
+    norepeatChips:$('#norepeatChips'),
+    stimpDn:$('#stimpDn'), stimpUp:$('#stimpUp'), stimp:$('#stimp'),
+    randNow:$('#randNow'),
+    beginBtn:$('#beginBtn'),
+    setupCard:$('#setupCard'), runCard:$('#runCard'), logPanel:$('#logPanel'),
+    boardDist:$('#boardDist'), boardTime:$('#boardTime'), boardScore:$('#boardScore'), boardShot:$('#boardShot'),
+    prevToggle:$('#prevToggle'), prevBox:$('#prevBox'), prevMade:$('#prevMade'), prevDepth:$('#prevDepth'), prevLat:$('#prevLat'), prevLeave:$('#prevLeave'),
+    padLeft:$('#padLeft'), padRight:$('#padRight'), padHoled:$('#padHoled'), padLong:$('#padLong'), padShort:$('#padShort'), padQuit:$('#padQuit'),
+    logMiss:$('#logMiss'), undoLast:$('#undoLast'), finishSession:$('#finishSession'),
+    logBody:$('#logBody'),
+    sessTitle:$('#sessTitle'),
+    depModal:$('#depthModal'), depDn:$('#depDn'), depUp:$('#depUp'), depAmt:$('#depthAmount'), depCancel:$('#depCancel'), depSave:$('#depSave'),
+    latRead:$('#latRead'), depRead:$('#depRead'),
+  };
+
+  const stepInput=(input,delta,min,max)=>{ input.value=String(r05(Math.max(min,Math.min(max,(Number(input.value)||0)+delta)))); };
+  ui.sdn.onclick = ()=> stepInput(ui.sDist,-0.5,1,30);
+  ui.sup.onclick = ()=> stepInput(ui.sDist,+0.5,1,30);
+  ui.rminDn.onclick = ()=> stepInput(ui.rMin,-0.5,1,30);
+  ui.rminUp.onclick = ()=> stepInput(ui.rMin,+0.5,1,30);
+  ui.rmaxDn.onclick = ()=> stepInput(ui.rMax,-0.5,1,30);
+  ui.rmaxUp.onclick = ()=> stepInput(ui.rMax,+0.5,1,30);
+  ui.stimpDn.onclick = ()=> stepInput(ui.stimp,-0.5,6,16);
+  ui.stimpUp.onclick = ()=> stepInput(ui.stimp,+0.5,6,16);
+
+  function ensureSetupVisibility(){
+    const d=ui.drillPick.value;
+    pageSession.setAttribute('data-drill', d);
+    $('#sessTitle').textContent = d==='straight' ? 'Straight Putt Drill' : d==='random' ? 'Randomizer Drill' : 'One-handed Drill';
+    if(d!=='random') ui.randNow.textContent='—';
+  }
+  ui.drillPick.addEventListener('change', ensureSetupVisibility);
+
+  /* Random distance */
+  let lastRand=null;
+  function genRandomDist(){
+    const min=r05(Math.max(1,Math.min(30,Number($('#rMin').value)||1)));
+    const max=r05(Math.max(1,Math.min(30,Number($('#rMax').value)||9)));
+    const norepeat=$('#norepeatChips').querySelector('.pill.active')?.dataset.on==='1';
+    const steps=Math.round((max-min)*2)+1; if(steps<=0) return min;
+    let cand=min;
+    for(let i=0;i<50;i++){
+      const k=Math.floor(Math.random()*steps); cand=r05(min+k*0.5); if(!norepeat || cand!==lastRand) break;
+    }
+    return cand;
+  }
+  $('#norepeatChips').addEventListener('click',(e)=>{const p=e.target.closest('.pill'); if(!p) return; $all('#norepeatChips .pill').forEach(x=>x.classList.remove('active')); p.classList.add('active');});
+
+  /* Run state */
+  let sess=null;
+  let log=[];
+  let latIn=0, depIn=0; // inches (signed)
+  let timerI=null; let timerStart=0;
+
+  function updateReadouts(){
+    ui.latRead.textContent = (latIn>0?'+':'') + String(latIn) + '″';
+    ui.depRead.textContent = (depIn>0?'+':'') + String(depIn) + '″';
+  }
+
+  function startTimer(){
+    timerStart=Date.now();
+    stopTimer();
+    timerI=setInterval(()=>{
+      const s=Math.floor((Date.now()-timerStart)/1000);
+      const mm=pad2(Math.floor(s/60)), ss=pad2(s%60);
+      ui.boardTime.textContent=`${mm}:${ss}`;
+    }, 250);
+  }
+  function stopTimer(){ if(timerI){ clearInterval(timerI); timerI=null; } }
+
+  function begin(){
+    ensureSetupVisibility();
+    const drill=ui.drillPick.value;
+    const hand = drill==='onehand' ? ui.handPick.value : '';
+    const stimp = Number(ui.stimp.value)||10;
+    sess={ id:`s_${Date.now()}`, drill, hand, stimp, started_at: nowISO() };
+    log=[]; lastRand=null; latIn=0; depIn=0; updateReadouts();
+
+    let dist= (drill==='random') ? genRandomDist() : r05(Math.max(1,Math.min(30,Number(ui.sDist.value)||7)));
+    if(drill==='random'){ lastRand=dist; ui.randNow.textContent=`${dist} ft`; }
+    setBoard(dist,0,0);
+    ui.setupCard.classList.add('hidden');
+    ui.runCard.classList.remove('hidden');
+    ui.logPanel.classList.remove('hidden');
+    startTimer();
+    renderLog();
+  }
+
+  function setBoard(dist,score,shot){
+    ui.boardDist.textContent=dist?dist.toFixed(1):'—';
+    ui.boardScore.textContent=String(score);
+    ui.boardShot.textContent = String(shot);
+  }
+  $('#beginBtn').onclick = begin;
+
+  $('#prevToggle').onclick = ()=>{
+    const s=ui.prevBox.classList.toggle('hidden');
+    $('#prevToggle').textContent = s ? 'show' : 'hide';
+  };
+
+  function saveAttempt(obj){
+    if(!sess) return;
+    const dist = Number(ui.boardDist.textContent)||0;
+
+    // Normalize inputs
+    const depth_in = (obj.depth_in!=null) ? Number(obj.depth_in) : (obj.depth_ft!=null ? Number(obj.depth_ft)*12 : 0);
+    const lat_in   = (obj.lat_in!=null)   ? Number(obj.lat_in)   : 0;
+    const depth_ft = (obj.depth_ft!=null) ? Number(obj.depth_ft) : (depth_in/12);
+    const lateral  = obj.lateral || (lat_in<0?'L': lat_in>0?'R':'C');
+
+    // Keep legacy leave_ft as |depth_ft| to preserve KPI meaning
+    const leave = Math.abs(depth_ft);
+
+    const row = {
+      sessionId:sess.id, ts:nowISO(),
+      distance_ft:dist, made:!!obj.made,
+      depth_ft:depth_ft, depth_in:Math.round(depth_in),
+      lateral:lateral, lat_in:Math.round(lat_in),
+      leave_ft:leave, drill:sess.drill, hand:sess.hand, stimp:sess.stimp
+    };
+    log.push(row);
+
+    // Update "previous" badges (panel is hidden but harmless)
+    ui.prevMade.textContent = row.made ? 'Made' : 'Miss';
+    ui.prevDepth.textContent = `Depth: ${row.depth_in} in`;
+    ui.prevLat.textContent = `Lat: ${row.lat_in} in`;
+    ui.prevLeave.textContent = `Leave: ${row.leave_ft.toFixed(1)} ft`;
+    ui.prevBox.classList.remove('hidden');
+    ui.prevToggle.textContent='hide';
+
+    const score = log.filter(r=>r.made).length;
+    setBoard(dist, score, log.length);
+
+    nextTarget();
+    renderLog();
+  }
+
+  function nextTarget(){
+    if(!sess) return;
+    let dist;
+    if(sess.drill==='random'){
+      dist = genRandomDist(); lastRand=dist; ui.randNow.textContent=`${dist} ft`;
+    }else{
+      dist = r05(Math.max(1,Math.min(30,Number(ui.sDist.value)||7)));
+    }
+    ui.boardDist.textContent = dist.toFixed(1);
+    // reset per-shot meters
+    latIn=0; depIn=0; updateReadouts();
+  }
+
+  // INCH steppers (no immediate save)
+  ui.padLeft.onclick  = ()=>{ latIn = Math.max(-200, latIn-1); updateReadouts(); };
+  ui.padRight.onclick = ()=>{ latIn = Math.min( 200, latIn+1); updateReadouts(); };
+  ui.padLong.onclick  = ()=>{ depIn = Math.min( 600, depIn+1); updateReadouts(); };
+  ui.padShort.onclick = ()=>{ depIn = Math.max(-600, depIn-1); updateReadouts(); };
+
+  // Log Miss (saves with current meters)
+  ui.logMiss.onclick  = ()=>{
+    if(latIn===0 && depIn===0){
+      if(!confirm('No inches set (0 / 0). Log as a center miss?')) return;
+    }
+    saveAttempt({made:false, depth_in:depIn, lat_in:latIn});
+  };
+
+  // Holed (saves zeros)
+  ui.padHoled.onclick = ()=> saveAttempt({made:true, depth_in:0, lat_in:0});
+
+  // Unused depth modal kept for compatibility
+  let pendingSign=+1;
+  function openDepth(sign){ pendingSign=sign; ui.depModal.classList.add('show'); }
+  function closeDepth(){ ui.depModal.classList.remove('show'); }
+  ui.depDn.onclick    = ()=> { const el=ui.depAmt; el.value=String(Math.max(0.5,(Number(el.value)||0.5)-0.5)); };
+  ui.depUp.onclick    = ()=> { const el=ui.depAmt; el.value=String((Number(el.value)||0.5)+0.5); };
+  ui.depCancel.onclick= closeDepth;
+  ui.depSave.onclick  = ()=>{ const amt=r05(Number(ui.depAmt.value)||0.5); saveAttempt({made:false, depth_ft: pendingSign*amt, lat_in:0}); closeDepth(); };
+
+  // Quit / Undo / Finish
+  ui.padQuit.onclick = ()=>{ if(confirm('Quit this drill without saving?')) resetSession(); };
+  ui.undoLast.onclick= ()=>{
+    if(!log.length) return;
+    log.pop();
+    const score = log.filter(r=>r.made).length;
+    setBoard(Number(ui.boardDist.textContent)||0, score, log.length);
+    renderLog();
+    const last=log[log.length-1];
+    if(last){
+      ui.prevMade.textContent = last.made?'Made':'Miss';
+      ui.prevDepth.textContent = `Depth: ${Number(last.depth_in||Math.round((last.depth_ft||0)*12))} in`;
+      ui.prevLat.textContent   = `Lat: ${Number(last.lat_in||0)} in`;
+      ui.prevLeave.textContent = `Leave: ${Number(last.leave_ft||0).toFixed(1)} ft`;
+    } else {
+      ui.prevBox.classList.add('hidden'); ui.prevToggle.textContent='show';
+    }
+  };
+
+  async function saveSession(){
+    if(!sess || !log.length){ alert('No attempts logged yet.'); return; }
+
+    const bestByDist={}, curByDist={};
+    if(sess.drill==='straight' || sess.drill==='onehand'){
+      for(const r of log){
+        const key=(Math.round(r.distance_ft*2)/2).toFixed(1);
+        if(r.made){ curByDist[key]=(curByDist[key]||0)+1; bestByDist[key]=Math.max(bestByDist[key]||0, curByDist[key]); }
+        else curByDist[key]=0;
+      }
+    }
+
+    try{
+      // Stable per-day numbering (daySeq)
+      const existingSessions = await idbAll('sessions');
+      const dayKey = (sess.started_at || nowISO()).slice(0,10);
+      const todays = existingSessions.filter(s => (s.started_at||'').slice(0,10) === dayKey);
+      const maxSeq = todays.reduce((m,s)=>Math.max(m, Number(s.daySeq||0)), 0);
+      const nextSeq = maxSeq>0 ? (maxSeq+1) : (todays.length+1);
+
+      const db=await openDB();
+      const tx=db.transaction(['sessions','putts'],'readwrite');
+      const stS=tx.objectStore('sessions'); const stP=tx.objectStore('putts');
+
+      const sid=sess.id;
+      await new Promise((res,rej)=>{const r=stS.add({id:sid, drill:sess.drill, hand:sess.hand, stimp:sess.stimp, started_at:sess.started_at, ended_at:nowISO(), bestByDist, daySeq: nextSeq}); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);});
+      for(const row of log) await idbAdd(stP,row);
+
+      await new Promise((res,rej)=>{
+        tx.oncomplete=()=>{ db.close(); res(); };
+        tx.onerror=()=> rej(tx.error||new Error('TX failed'));
+        tx.onabort=()=> rej(new Error('TX aborted'));
+      });
+
+      localStorage.setItem('lastSid', sid);
+      alert('Session saved.');
+      resetSession();
+      location.hash='#/stats';
+    }catch(e){ console.error(e); alert('Could not save session.'); }
+  }
+  ui.finishSession.onclick = saveSession;
+
+  function resetSession(){
+    if(timerI){ clearInterval(timerI); timerI=null; }
+    sess=null; log=[]; lastRand=null; latIn=0; depIn=0; updateReadouts();
+    ui.runCard.classList.add('hidden'); ui.logPanel.classList.add('hidden');
+    ui.setupCard.classList.remove('hidden');
+    ensureSetupVisibility();
+    renderLog();
+  }
+
+  function renderLog(){
+    const tbody=ui.logBody; tbody.innerHTML='';
+    log.forEach((r,i)=>{
+      const d=new Date(r.ts);
+      const depthIn = ('depth_in' in r) ? r.depth_in : Math.round((r.depth_ft||0)*12);
+      const latIn   = ('lat_in' in r)   ? r.lat_in   : (r.lateral==='L'?-1:(r.lateral==='R'?1:0));
+      const tr=document.createElement('tr');
+      tr.innerHTML = `<td>${i+1}</td><td>${fmtDate(d)}</td><td>${r.distance_ft.toFixed(1)} ft</td><td>${r.made?'Yes':'No'}</td><td>${depthIn}"</td><td>${latIn}"</td><td>${(r.leave_ft||0).toFixed(1)}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  /* ===== Stats ===== */
+  const stats={
+    sessionPick:$('#sessionPick'), fltDrill:$('#fltDrill'), fltHand:$('#fltHand'), fltStimp:$('#fltStimp'),
+    kpiPutts:$('#kpiPutts'), kpiAvgLeave:$('#kpiAvgLeave'),
+    bucketRows:$('#bucketRows'), streakRows:$('#streakRows'),
+    btnOpen:$('#btnOpenSession'), btnDelete:$('#btnDeleteSession'),
+    sdPanel:$('#sessionDetailsPanel'), sdTitle:$('#sdTitle'), sdMeta:$('#sdMeta'), sdBody:$('#sdBody'),
+  };
+  let SESS=[], PUTTS=[];
+
+  function computeBestByDist(rows, drill){
+    if(!(drill==='straight'||drill==='onehand')) return {};
+    const cur={}, best={};
+    rows.sort((a,b)=> (a.ts||'').localeCompare(b.ts||'')); // time order
+    rows.forEach(r=>{
+      const k=(Math.round((Number(r.distance_ft)||0)*2)/2).toFixed(1);
+      if(r.made){ cur[k]=(cur[k]||0)+1; best[k]=Math.max(best[k]||0, cur[k]); }
+      else cur[k]=0;
+    });
+    return best;
+  }
+
+  async function rehydrateSessionsFromPutts(putts){
+    const by = new Map();
+    putts.forEach(p=>{
+      if(!p.sessionId) return;
+      if(!by.has(p.sessionId)) by.set(p.sessionId, []);
+      by.get(p.sessionId).push(p);
+    });
+    const rebuilt=[];
+    by.forEach((rows, sid)=>{
+      rows.sort((a,b)=> (a.ts||'').localeCompare(b.ts||''));
+      const first=rows[0]||{};
+      const last=rows[rows.length-1]||{};
+      const drill=first.drill||'straight';
+      const hand =first.hand||'';
+      const stimp=first.stimp||10;
+      const bestByDist = computeBestByDist(rows, drill);
+      rebuilt.push({id:sid, drill, hand, stimp, started_at:first.ts||nowISO(), ended_at:last.ts||nowISO(), bestByDist});
+    });
+
+    // Assign stable daySeq per day based on start time
+    const counters = new Map();
+    rebuilt.sort((a,b)=> (a.started_at||'').localeCompare(b.started_at||''));
+    for (const s of rebuilt) {
+      const dayKey = (s.started_at||'').slice(0,10);
+      const next = (counters.get(dayKey) || 0) + 1;
+      counters.set(dayKey, next);
+      s.daySeq = next;
+    }
+
+    if(rebuilt.length){
+      const db=await openDB();
+      await new Promise((res,rej)=>{
+        const tx=db.transaction(['sessions'],'readwrite'); const st=tx.objectStore('sessions');
+        rebuilt.forEach(s=>st.put(s));
+        tx.oncomplete=()=>{ db.close(); res(); };
+        tx.onerror=()=> rej(tx.error||new Error('rehydrate failed'));
+      });
+    }
+    return rebuilt;
+  }
+
+  async function initStats(){
+    [SESS,PUTTS]=await Promise.all([idbAll('sessions'), idbAll('putts')]);
+    if(SESS.length===0 && PUTTS.length>0){
+      SESS = await rehydrateSessionsFromPutts(PUTTS);
+    }
+
+    // One-time migration: add daySeq to old sessions that don't have it
+    if (SESS.some(s => !('daySeq' in s))) {
+      const counters = new Map();
+      SESS.sort((a,b)=> (a.started_at||'').localeCompare(b.started_at||''));
+      for (const s of SESS) {
+        const dayKey = (s.started_at||'').slice(0,10);
+        if (!('daySeq' in s)) {
+          const next = (counters.get(dayKey) || 0) + 1;
+          counters.set(dayKey, next);
+          s.daySeq = next;
+        } else {
+          const cur = Number(s.daySeq)||0;
+          counters.set(dayKey, Math.max(counters.get(dayKey)||0, cur));
+        }
+      }
+      const db = await openDB();
+      await new Promise((res,rej)=>{
+        const tx=db.transaction(['sessions'],'readwrite'); const st=tx.objectStore('sessions');
+        SESS.forEach(s=> st.put(s));
+        tx.oncomplete=()=>{ db.close(); res(); };
+        tx.onerror=()=> rej(tx.error||new Error('migrate daySeq failed'));
+      });
+    }
+
+    populateSessions();
+    renderStats();
+    updateActionButtons();
+
+    const lastSid = localStorage.getItem('lastSid');
+    if(lastSid){
+      const sel=stats.sessionPick;
+      if(Array.from(sel.options).some(o=>o.value===lastSid)){
+        sel.value=lastSid;
+        renderStats();
+        renderSessionDetails(true);
+        updateActionButtons();
+      }
+    }
+  }
+
+  function populateSessions(){
+    const sel=stats.sessionPick;
+    const prev=sel.value;
+    sel.innerHTML='<option value="">All sessions</option>';
+
+    const byDay={};
+    SESS.forEach(s=>{
+      const dstr = (s.started_at||'').slice(0,10);
+      if(!byDay[dstr]) byDay[dstr]=[];
+      byDay[dstr].push(s);
+    });
+
+    Object.keys(byDay).sort().forEach(dkey=>{
+      const list = byDay[dkey].sort((a,b)=>
+        (a.daySeq && b.daySeq) ? (a.daySeq - b.daySeq)
+                               : ((a.started_at||'').localeCompare(b.started_at||'')));
+      list.forEach((s)=>{
+        const d=new Date(s.started_at||dkey);
+        const n = Number(s.daySeq || 1);
+        const label=`${fmtDot(d)} (${n})`;
+        const opt=document.createElement('option');
+        opt.value=s.id; opt.textContent=label; opt.dataset.label=label;
+        if(prev && prev===s.id) opt.selected=true;
+        sel.appendChild(opt);
+      });
+    });
+  }
+
+  const filters=()=>({
+    sid:stats.sessionPick.value||'',
+    drill:stats.fltDrill.value||'',
+    hand:stats.fltHand.value||'',
+    stimp:stats.fltStimp.value||''
+  });
+
+  function applyFilters(rows){
+    const f=filters();
+    return rows.filter(r=>
+      (!f.sid   || r.sessionId===f.sid) &&
+      (!f.drill || r.drill===f.drill) &&
+      (!f.hand  || r.hand===f.hand) &&
+      (!f.stimp || String(r.stimp)===String(f.stimp))
+    );
+  }
+
+  function bucket(ft){
+    const d=Number(ft)||0;
+    if (d<=2) return '1–2';
+    if (d<=4) return '3–4';
+    if (d<=6) return '5–6';
+    if (d<=8) return '7–8';
+    if (d<=10) return '9–10';
+    return '10+';
+  }
+
+  function longestStreakFor(rows){
+    let best=0, cur=0;
+    rows.forEach(r=>{ if(r.made){cur++; best=Math.max(best,cur);} else {cur=0;} });
+    return best;
+  }
+
+  function renderStats(){
+    const rows=applyFilters(PUTTS);
+
+    // KPI: Avg MISS leave (inches)
+    const missRows = rows.filter(r=>!r.made);
+    if(missRows.length){
+      const sumIn = missRows.reduce((s,r)=>{
+        if(typeof r.depth_in==='number') return s+Math.abs(r.depth_in);
+        const ft = Number(r.leave_ft)||Math.abs(Number(r.depth_ft)||0);
+        return s + Math.round(ft*12);
+      },0);
+      const avgIn = sumIn / missRows.length;
+      stats.kpiAvgLeave.textContent = Math.round(avgIn).toString();
+    }else{
+      stats.kpiAvgLeave.textContent='–';
+    }
+
+    // KPI: Total putts unchanged
+    stats.kpiPutts.textContent=String(rows.length||0);
+
+    // Buckets table (Longest Streak + Make%)
+    const base=['1–2','3–4','5–6','7–8','9–10']; const include10plus=rows.some(r=>r.distance_ft>10);
+    const order = include10plus ? base.concat(['10+']) : base;
+
+    // Group rows by bucket (keep time order)
+    const sorted = rows.slice().sort((a,b)=> (a.ts||'').localeCompare(b.ts||''));
+    const groups={}; order.forEach(k=>groups[k]=[]);
+    sorted.forEach(r=>{ const b=bucket(r.distance_ft); (groups[b]||(groups[b]=[])).push(r); });
+
+    stats.bucketRows.innerHTML='';
+    order.forEach(k=>{
+      const g=groups[k]||[];
+      const n=g.length;
+      const makes=g.reduce((m,r)=>m+(r.made?1:0),0);
+      const mk = n?(makes/n*100):0;
+      const longest = longestStreakFor(g);
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${k}</td><td class="right">${n}</td><td class="right">${n?longest:'—'}</td><td class="right">${n?mk.toFixed(0)+'%':'—'}</td>`;
+      stats.bucketRows.appendChild(tr);
+    });
+
+    if(!filters().sid){
+      stats.sdPanel.classList.add('hidden');
+    }
+  }
+
+  async function renderSessionDetails(scroll=false){
+    const sid=filters().sid;
+    if(!sid){ stats.sdPanel.classList.add('hidden'); return; }
+
+    const session = SESS.find(s=>s.id===sid);
+    const label = stats.sessionPick.selectedOptions[0]?.dataset.label || 'Session';
+    const rows = (await idbGetPuttsBySession(sid)).sort((a,b)=> (a.ts||'').localeCompare(b.ts||''));
+
+    // Summary
+    const attempts = rows.length;
+    const makes = rows.filter(r=>r.made).length;
+    const makePct = attempts ? ((makes/attempts)*100).toFixed(1) : '0.0';
+    // Avg miss leave in inches
+    const missRows = rows.filter(r=>!r.made);
+    const sumIn = missRows.reduce((s,r)=>{
+      if(typeof r.depth_in==='number') return s+Math.abs(r.depth_in);
+      const ft = Number(r.leave_ft)||Math.abs(Number(r.depth_ft)||0);
+      return s + Math.round(ft*12);
+    },0);
+    const avgMissIn = missRows.length ? Math.round(sumIn / missRows.length) : 0;
+
+    // Duration
+    const startTs = session?.started_at || rows[0]?.ts;
+    const endTs   = session?.ended_at   || rows[rows.length-1]?.ts || startTs;
+    let dur='—';
+    if(startTs && endTs){
+      const secs = Math.max(0, Math.floor((new Date(endTs)-new Date(startTs))/1000));
+      dur = fmtDur(secs);
+    }
+
+    const drill = session?.drill || rows[0]?.drill || '';
+    const hand  = session?.hand  || rows[0]?.hand  || '';
+    const stimp = session?.stimp || rows[0]?.stimp || '';
+
+    stats.sdTitle.textContent = label;
+    stats.sdMeta.textContent = `Drill: ${drill || '—'}${hand?` • Hand: ${hand}`:''}${stimp?` • Stimp: ${stimp}`:''} • Time: ${dur} • Attempts: ${attempts} • Makes: ${makes} (${makePct}%) • Avg miss leave: ${missRows.length?avgMissIn:'—'} in`;
+
+    // Table
+    stats.sdBody.innerHTML='';
+    rows.forEach((r,i)=>{
+      const d=new Date(r.ts);
+      const depthIn = (typeof r.depth_in==='number') ? r.depth_in : Math.round((r.depth_ft||0)*12);
+      const latIn   = (typeof r.lat_in==='number')   ? r.lat_in   : (r.lateral==='L'?-1:(r.lateral==='R'?1:0));
+      const tr=document.createElement('tr');
+      tr.innerHTML = `<td>${i+1}</td><td>${fmtTime(d)}</td><td>${(r.distance_ft||0).toFixed(1)} ft</td><td>${r.made?'Yes':'No'}</td><td>${depthIn}"</td><td>${latIn}"</td><td>${(r.leave_ft||0).toFixed(1)}</td>`;
+      stats.sdBody.appendChild(tr);
+    });
+
+    stats.sdPanel.classList.remove('hidden');
+    if(scroll) stats.sdPanel.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  function updateActionButtons(){
+    const sid=filters().sid;
+    stats.btnOpen.disabled = !sid;
+    stats.btnDelete.disabled = !sid;
+  }
+
+  // UI events
+  stats.sessionPick.onchange=()=>{ renderStats(); renderSessionDetails(); updateActionButtons(); };
+  stats.fltDrill.onchange=()=>{ renderStats(); };
+  stats.fltHand.onchange=()=>{ renderStats(); };
+  stats.fltStimp.onchange=()=>{ renderStats(); };
+
+  stats.btnOpen.onclick = ()=> renderSessionDetails(true);
+  stats.btnDelete.onclick = async ()=>{
+    const sid=filters().sid; if(!sid) return;
+    if(!confirm('Delete this session and all its putts? This cannot be undone.')) return;
+    try{
+      await idbDeleteSessionCascade(sid);
+      if(localStorage.getItem('lastSid')===sid) localStorage.removeItem('lastSid');
+      alert('Session deleted.');
+      await initStats();
+      stats.sessionPick.value=''; // back to "All sessions"
+      renderStats(); renderSessionDetails(); updateActionButtons();
+    }catch(err){
+      console.error(err); alert('Delete failed.');
+    }
+  };
+
+  /* ===== Exports & More Sheet ===== */
+  function toggleSheet(on){ $('#moreSheet').classList.toggle('show', !!on); }
+  $('#msClose').onclick=()=>toggleSheet(false);
+
+  $('#msExportSession').onclick=async ()=>{
+    const sid=$('#sessionPick').value; if(!sid){ alert('Pick a session in the Stats filter first.'); return; }
+    const rows=await idbGetPuttsBySession(sid);
+    const cols=['session_id','date','drill','hand','stimp','distance_ft','made','depth_ft','depth_in','lateral','lat_in','leave_ft'];
+    const out=[cols];
+    rows.forEach(r=>{ const d=new Date(r.ts); out.push([r.sessionId, `${d.toISOString().slice(0,10)}`, r.drill||'', r.hand||'', r.stimp||'', r.distance_ft, r.made?1:0, r.depth_ft||'', r.depth_in||'', r.lateral||'', r.lat_in||'', r.leave_ft||'']); });
+    const csv=out.map(row=>row.map(sanitizeCsvCell).join(',')).join('\n');
+    download('indoor_putting_session.csv', new Blob(["\ufeff"+csv],{type:'text/csv;charset=utf-8;'}));
+    toggleSheet(false);
+  };
+
+  $('#msExportStats').onclick=async ()=>{
+    const selRows=applyFilters(PUTTS);
+    const byD=new Map(); selRows.forEach(r=>{const key=(Math.round((Number(r.distance_ft)||0)*2)/2).toFixed(1); const e=byD.get(key)||{attempts:0,made:0,leave:0}; e.attempts++; e.made+=r.made?1:0; e.leave+=Number(r.leave_ft)||0; byD.set(key,e);});
+    const out=[['distance_ft','attempts','made','make_pct','avg_leave_ft']];
+    Array.from(byD.keys()).sort((a,b)=>parseFloat(a)-parseFloat(b)).forEach(k=>{
+      const e=byD.get(k); const mk=e.attempts?(e.made/e.attempts*100):0; const avg=e.attempts?(e.leave/e.attempts):0;
+      out.push([k,e.attempts,e.made,mk.toFixed(1),avg.toFixed(2)]);
+    });
+    const csv=out.map(r=>r.map(sanitizeCsvCell).join(',')).join('\n');
+    download('indoor_putting_stats.csv', new Blob(["\ufeff"+csv],{type:'text/csv;charset=utf-8;'}));
+    toggleSheet(false);
+  };
+
+  $('#msExportJSON').onclick=async ()=>{
+    const sessions=await idbAll('sessions'), putts=await idbAll('putts');
+    const data={schema:'indoor_putting',version:1,exportedAt:nowISO(),sessions,putts};
+    download(`IndoorPutting_${(new Date()).toISOString().slice(0,10)}.json`, new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+    toggleSheet(false);
+  };
+
+  $('#msImportJSON').onclick=()=>{ $('#importJSONInput').click(); toggleSheet(false); };
+  $('#importJSONInput').addEventListener('change', async (e)=>{
+    const file=e.target.files && e.target.files[0]; e.target.value=''; if(!file) return;
+    try{
+      const text=await file.text(); const data=JSON.parse(text);
+      if(!data || data.schema!=='indoor_putting'){ alert('Invalid JSON schema.'); return; }
+      await deleteWholeDB(); await openDB();
+      const db=await openDB(); const tx=db.transaction(['sessions','putts'],'readwrite');
+      const stS=tx.objectStore('sessions'); const stP=tx.objectStore('putts');
+      for(const s of (data.sessions||[])) stS.add(s);
+      for(const p of (data.putts||[]))   stP.add(p);
+      await new Promise((res,rej)=>{tx.oncomplete=()=>{db.close(); res();}; tx.onerror=()=>rej(tx.error||new Error('import failed'));});
+      alert('Import complete (data replaced).'); initStats(); location.hash='#/stats';
+    }catch(err){ console.error(err); alert('Import failed.'); }
+  });
+
+  document.addEventListener('click',(ev)=>{
+    const s=$('#moreSheet');
+    if(s.classList.contains('show') && !ev.target.closest('#moreSheet .card') && !ev.target.closest('[data-nav="#/more"]')) toggleSheet(false);
+  });
+
+  /* ===== Drill query clearing (fix) ===== */
+  let clearedDrillQueryOnce=false;
+  function applyHashParams(){
+    const [route, query='']=(location.hash||'#/home').split('?');
+    if(route==="#/session" && query){
+      const d=new URLSearchParams(query).get('drill');
+      if(d && ['straight','random','onehand'].includes(d)) { $('#drillPick').value=d; }
+      if(!clearedDrillQueryOnce){
+        clearedDrillQueryOnce=true;
+        setTimeout(()=>{ if(location.hash.startsWith('#/session?')) location.hash='#/session'; },0);
+      }
+    }
+    ensureSetupVisibility();
+  }
+  window.addEventListener('hashchange', applyHashParams);
+  applyHashParams();
+
+  /* ===== Subtle haptics ===== */
+  function haptic(kind='neutral'){
+    try{
+      if(!('vibrate' in navigator)) return;
+      const patterns={
+        neutral:[12],        // L/R taps
+        success:[12,40,12],  // Holed / Finish
+        warn:[8,30,8],       // Long / Short / Log
+        danger:[30,60,30]    // Quit / Delete
+      };
+      navigator.vibrate(patterns[kind]||patterns.neutral);
+    }catch(_){}
+  }
+  const HAPTIC_MAP={
+    padLeft:'neutral', padRight:'neutral',
+    padHoled:'success', finishSession:'success', logMiss:'warn',
+    padLong:'warn', padShort:'warn',
+    padQuit:'danger',
+    btnOpenSession:'neutral', btnDeleteSession:'danger',
+    undoLast:'neutral'
+  };
+  Object.keys(HAPTIC_MAP).forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('pointerdown', ()=> haptic(HAPTIC_MAP[id]), {passive:true});
+  });
+})();
+</script>
+</body>
+</html>
