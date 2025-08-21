@@ -35,7 +35,7 @@
   .btn{background:var(--btn);color:var(--text);border:1px solid var(--border);padding:10px 12px;border-radius:12px;cursor:pointer;display:inline-flex;gap:8px;align-items:center;justify-content:center;font-weight:800;text-decoration:none;touch-action:manipulation}
   .btn.full{width:100%}
   .btn.primary{background:var(--accent-2);color:#fff;border:none}
-  .btn.success{background:var(--accent);color:#031;border:none}
+  .btn.success{background:var(--accent);color:#fff;border:none} /* Holed text now white */
   .btn.danger{background:linear-gradient(180deg, #991b1b, #450a0a); color:#fff; border-color:#5f0a0a}
   .chips{display:flex;gap:10px;flex-wrap:wrap}
   .pill{padding:10px 12px;border-radius:14px;cursor:pointer;color:#9aa7b2}
@@ -95,23 +95,25 @@
 
   /* === Split-pad with inline inch steppers === */
   .pad-split{display:grid;grid-template-columns:1.6fr 1fr;gap:10px;margin-top:10px}
+  .pad-split > *{min-width:0} /* prevent overflow causing the right side to cut off on iOS */
   .lr-card{
     position:relative;border:1px solid var(--border);border-radius:16px;overflow:hidden;
     min-height:180px;background:linear-gradient(180deg,#14532d 0%, #0e3b23 55%, #052e16 100%);
-    display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;
+    display:grid;grid-template-columns:1fr 64px 1fr;align-items:stretch; /* fixed center width for symmetry */
   }
+  .lr-card > *{min-width:0}
   .lr-card .half{
     appearance:none;border:none;background:transparent;color:#d6ffb7;
     font-weight:900;font-size:18px;letter-spacing:.02em;
     display:flex;align-items:center;justify-content:center;gap:8px;
-    padding:14px 10px;cursor:pointer;outline-offset:3px;width:100%;touch-action:manipulation
+    padding:14px 10px;cursor:pointer;outline-offset:3px;width:100%;touch-action:manipulation;white-space:nowrap
   }
   .lr-card .half.left{border-right:1px solid rgba(255,255,255,.08)}
   .lr-card .half.right{border-left:1px solid rgba(255,255,255,.08)}
   .lr-card .half:active{ transform:translateY(1px) }
   .lr-card .half:focus-visible{ outline:3px solid var(--accent-2) }
   .midreadout{
-    display:flex;align-items:center;justify-content:center;padding:0 8px;min-width:70px
+    display:flex;align-items:center;justify-content:center;padding:0 6px;width:64px
   }
   .midreadout .num{
     font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -139,6 +141,13 @@
 
   /* Randomizer: show Stimp on right column */
   #page-session[data-drill="random"] #stimpField{grid-column:2}
+
+  /* === KPI (Avg miss leave) with arrows === */
+  .kpi-wrap{display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:900}
+  .kpi-wrap .unit{margin-left:2px;font-size:18px;font-weight:900;opacity:.95}
+  .kpi-wrap .dir{display:inline-flex;gap:6px;margin-left:8px;align-items:center;color:#cbd5e1}
+  .kpi-wrap .dir .arr{font-size:18px;line-height:1}
+  .kpi-words{font-size:12px;text-align:center;color:#9aa7b2;margin-top:2px}
 
   @media (max-width:380px){
     .stepper{grid-template-columns:32px minmax(0,1fr) 32px}
@@ -281,7 +290,7 @@
     </div>
     <div class="tile" style="margin-top:8px"><div class="k">SHOT</div><div class="v" id="boardShot">0</div></div>
 
-    <!-- Previous Shot block (hidden) -->
+    <!-- Previous Shot block (kept hidden by default) -->
     <div class="panel hidden" style="margin:10px 0;background:#0a1410;border-color:#1b2620">
       <div class="prevrow">
         <h2 style="margin:0">Previous Shot</h2>
@@ -329,7 +338,7 @@
   <div class="panel hidden" id="logPanel">
     <h2>Log</h2>
     <table class="tight">
-      <thead><tr><th>#</th><th>Date</th><th>Dist</th><th>Made</th><th>Depth (in)</th><th>Lat (in)</th><th>Leave (ft)</th></tr></thead>
+      <thead><tr><th>#</th><th>Date</th><th>Dist</th><th>Made</th><th>Depth (in)</th><th>Lat (in)</th><th>Leave (in)</th></tr></thead>
       <tbody id="logBody"></tbody>
     </table>
   </div>
@@ -369,7 +378,14 @@
 
   <div class="row">
     <div class="panel"><h2 style="margin-bottom:6px">Total Putts</h2><div style="font-size:32px;font-weight:900;text-align:center" id="kpiPutts">–</div></div>
-    <div class="panel"><h2 style="margin-bottom:6px">Avg Miss Leave (in)</h2><div style="font-size:32px;font-weight:900;text-align:center" id="kpiAvgLeave">–</div></div>
+    <div class="panel">
+      <h2 style="margin-bottom:6px">Avg Miss Leave (in)</h2>
+      <div class="kpi-wrap" id="kpiAvgLeaveBox" aria-live="polite">
+        <span class="num" id="kpiAvgLeaveNum">–</span><span class="unit">″</span>
+        <span class="dir" id="kpiAvgLeaveDir"></span>
+      </div>
+      <div class="kpi-words" id="kpiAvgLeaveWords"></div>
+    </div>
   </div>
 
   <div class="panel">
@@ -386,7 +402,7 @@
     <h2 id="sdTitle">Session Details</h2>
     <div id="sdMeta" class="muted" style="margin-top:6px"></div>
     <table class="tight" style="margin-top:8px">
-      <thead><tr><th>#</th><th>Time</th><th>Dist</th><th>Made</th><th>Depth (in)</th><th>Lat (in)</th><th>Leave (ft)</th></tr></thead>
+      <thead><tr><th>#</th><th>Time</th><th>Dist</th><th>Made</th><th>Depth (in)</th><th>Lat (in)</th><th>Leave (in)</th></tr></thead>
       <tbody id="sdBody"></tbody>
     </table>
   </div>
@@ -603,8 +619,8 @@
   let timerI=null; let timerStart=0;
 
   function updateReadouts(){
-    ui.latRead.textContent = (latIn>0?'+':'') + String(latIn) + '″';
-    ui.depRead.textContent = (depIn>0?'+':'') + String(depIn) + '″';
+    $('#latRead').textContent = (latIn>0?'+':'') + String(latIn) + '″';
+    $('#depRead').textContent = (depIn>0?'+':'') + String(depIn) + '″';
   }
 
   function startTimer(){
@@ -658,23 +674,27 @@
     const depth_ft = (obj.depth_ft!=null) ? Number(obj.depth_ft) : (depth_in/12);
     const lateral  = obj.lateral || (lat_in<0?'L': lat_in>0?'R':'C');
 
-    // Keep legacy leave_ft as |depth_ft| to preserve KPI meaning
-    const leave = Math.abs(depth_ft);
+    // Derived leave (inches): radial distance; sign by depth (short negative, long positive, 0 => positive)
+    const derived_in = Math.round(Math.hypot(depth_in, lat_in));
+    const leave_signed_in = depth_in < 0 ? -derived_in : (depth_in > 0 ? derived_in : derived_in);
+    // Keep legacy leave_ft as derived magnitude in feet
+    const leave_ft = Math.abs(derived_in) / 12;
 
     const row = {
       sessionId:sess.id, ts:nowISO(),
       distance_ft:dist, made:!!obj.made,
       depth_ft:depth_ft, depth_in:Math.round(depth_in),
       lateral:lateral, lat_in:Math.round(lat_in),
-      leave_ft:leave, drill:sess.drill, hand:sess.hand, stimp:sess.stimp
+      leave_in:leave_signed_in, leave_ft:leave_ft,
+      drill:sess.drill, hand:sess.hand, stimp:sess.stimp
     };
     log.push(row);
 
-    // Update "previous" badges (panel is hidden but harmless)
+    // Update "previous" badges (panel kept hidden by default)
     ui.prevMade.textContent = row.made ? 'Made' : 'Miss';
     ui.prevDepth.textContent = `Depth: ${row.depth_in} in`;
     ui.prevLat.textContent = `Lat: ${row.lat_in} in`;
-    ui.prevLeave.textContent = `Leave: ${row.leave_ft.toFixed(1)} ft`;
+    ui.prevLeave.textContent = `Leave: ${row.leave_in} in`;
     ui.prevBox.classList.remove('hidden');
     ui.prevToggle.textContent='hide';
 
@@ -737,7 +757,12 @@
       ui.prevMade.textContent = last.made?'Made':'Miss';
       ui.prevDepth.textContent = `Depth: ${Number(last.depth_in||Math.round((last.depth_ft||0)*12))} in`;
       ui.prevLat.textContent   = `Lat: ${Number(last.lat_in||0)} in`;
-      ui.prevLeave.textContent = `Leave: ${Number(last.leave_ft||0).toFixed(1)} ft`;
+      // Use derived, signed leave
+      const prevLeave = (typeof last.leave_in==='number') ? last.leave_in :
+        (function(){ const di=(typeof last.depth_in==='number')?last.depth_in:Math.round((last.depth_ft||0)*12);
+                     const li=(typeof last.lat_in==='number')?last.lat_in:(last.lateral==='L'?-1:(last.lateral==='R'?1:0));
+                     const mag=Math.round(Math.hypot(di,li)); return di<0?-mag:(di>0?mag:mag); })();
+      ui.prevLeave.textContent = `Leave: ${prevLeave} in`;
     } else {
       ui.prevBox.classList.add('hidden'); ui.prevToggle.textContent='show';
     }
@@ -800,8 +825,12 @@
       const d=new Date(r.ts);
       const depthIn = ('depth_in' in r) ? r.depth_in : Math.round((r.depth_ft||0)*12);
       const latIn   = ('lat_in' in r)   ? r.lat_in   : (r.lateral==='L'?-1:(r.lateral==='R'?1:0));
+      // Derived, signed leave
+      const leaveIn = (typeof r.leave_in==='number') ? r.leave_in : (function(){
+        const mag=Math.round(Math.hypot(depthIn,latIn)); return depthIn<0?-mag:(depthIn>0?mag:mag);
+      })();
       const tr=document.createElement('tr');
-      tr.innerHTML = `<td>${i+1}</td><td>${fmtDate(d)}</td><td>${r.distance_ft.toFixed(1)} ft</td><td>${r.made?'Yes':'No'}</td><td>${depthIn}"</td><td>${latIn}"</td><td>${(r.leave_ft||0).toFixed(1)}</td>`;
+      tr.innerHTML = `<td>${i+1}</td><td>${fmtDate(d)}</td><td>${r.distance_ft.toFixed(1)} ft</td><td>${r.made?'Yes':'No'}</td><td>${depthIn}"</td><td>${latIn}"</td><td>${leaveIn}"</td>`;
       tbody.appendChild(tr);
     });
   }
@@ -809,8 +838,9 @@
   /* ===== Stats ===== */
   const stats={
     sessionPick:$('#sessionPick'), fltDrill:$('#fltDrill'), fltHand:$('#fltHand'), fltStimp:$('#fltStimp'),
-    kpiPutts:$('#kpiPutts'), kpiAvgLeave:$('#kpiAvgLeave'),
-    bucketRows:$('#bucketRows'), streakRows:$('#streakRows'),
+    kpiPutts:$('#kpiPutts'),
+    kpiAvgBox:$('#kpiAvgLeaveBox'), kpiAvgNum:$('#kpiAvgLeaveNum'), kpiAvgDir:$('#kpiAvgLeaveDir'), kpiAvgWords:$('#kpiAvgLeaveWords'),
+    bucketRows:$('#bucketRows'),
     btnOpen:$('#btnOpenSession'), btnDelete:$('#btnDeleteSession'),
     sdPanel:$('#sessionDetailsPanel'), sdTitle:$('#sdTitle'), sdMeta:$('#sdMeta'), sdBody:$('#sdBody'),
   };
@@ -868,6 +898,27 @@
     }
     return rebuilt;
   }
+
+  // Sign helpers + derived leave helpers
+  function signedDepthIn(r){
+    if(typeof r.depth_in==='number') return r.depth_in;
+    if(typeof r.depth_ft==='number') return Math.round(r.depth_ft*12);
+    return 0;
+  }
+  function signedLatIn(r){
+    if(typeof r.lat_in==='number') return r.lat_in;
+    if(r.lateral==='L') return -1;
+    if(r.lateral==='R') return  1;
+    return 0;
+  }
+  function derivedLeaveSignedIn(r){
+    if (typeof r.leave_in === 'number') return r.leave_in;
+    const di = signedDepthIn(r);
+    const li = signedLatIn(r);
+    const mag = Math.round(Math.hypot(di, li));
+    return di < 0 ? -mag : (di > 0 ? mag : mag);
+  }
+  function derivedLeaveAbsIn(r){ return Math.abs(derivedLeaveSignedIn(r)); }
 
   async function initStats(){
     [SESS,PUTTS]=await Promise.all([idbAll('sessions'), idbAll('putts')]);
@@ -979,21 +1030,38 @@
   function renderStats(){
     const rows=applyFilters(PUTTS);
 
-    // KPI: Avg MISS leave (inches)
+    // KPI: Avg MISS derived leave (inches) + arrows from average signed depth/lat
     const missRows = rows.filter(r=>!r.made);
     if(missRows.length){
-      const sumIn = missRows.reduce((s,r)=>{
-        if(typeof r.depth_in==='number') return s+Math.abs(r.depth_in);
-        const ft = Number(r.leave_ft)||Math.abs(Number(r.depth_ft)||0);
-        return s + Math.round(ft*12);
-      },0);
-      const avgIn = sumIn / missRows.length;
-      stats.kpiAvgLeave.textContent = Math.round(avgIn).toString();
+      const sumAbsLeaveIn = missRows.reduce((s,r)=>s+derivedLeaveAbsIn(r),0);
+      const avgAbsLeaveIn = sumAbsLeaveIn / missRows.length;
+
+      const avgDepthSigned = missRows.reduce((s,r)=>s+signedDepthIn(r),0)/missRows.length;
+      const avgLatSigned   = missRows.reduce((s,r)=>s+signedLatIn(r),0)/missRows.length;
+
+      const num = (Math.round(avgAbsLeaveIn*10)/10).toFixed(1);
+      stats.kpiAvgNum.textContent = num;
+
+      // arrows
+      const th=0.25;
+      const depthArrow = Math.abs(avgDepthSigned)<th ? '•' : (avgDepthSigned>0?'↑':'↓');
+      const latArrow   = Math.abs(avgLatSigned)<th   ? '•' : (avgLatSigned>0?'→':'←');
+      stats.kpiAvgDir.innerHTML = `<span class="arr">${depthArrow}</span><span class="arr">${latArrow}</span>`;
+
+      // words
+      const depthWord = Math.abs(avgDepthSigned)<th ? 'center' : (avgDepthSigned>0?'long':'short');
+      const latWord   = Math.abs(avgLatSigned)<th   ? 'center' : (avgLatSigned>0?'right':'left');
+      const parts=[]; if(depthWord!=='center') parts.push(depthWord); if(latWord!=='center') parts.push(latWord);
+      stats.kpiAvgWords.textContent = parts.length ? parts.join(' and ') : 'center';
+      stats.kpiAvgBox.setAttribute('aria-label', `${num} inches ${parts.length?parts.join(' and '):'center'}`);
     }else{
-      stats.kpiAvgLeave.textContent='–';
+      stats.kpiAvgNum.textContent='–';
+      stats.kpiAvgDir.textContent='';
+      stats.kpiAvgWords.textContent='';
+      stats.kpiAvgBox.removeAttribute('aria-label');
     }
 
-    // KPI: Total putts unchanged
+    // KPI: Total putts
     stats.kpiPutts.textContent=String(rows.length||0);
 
     // Buckets table (Longest Streak + Make%)
@@ -1005,7 +1073,7 @@
     const groups={}; order.forEach(k=>groups[k]=[]);
     sorted.forEach(r=>{ const b=bucket(r.distance_ft); (groups[b]||(groups[b]=[])).push(r); });
 
-    stats.bucketRows.innerHTML='';
+    $('#bucketRows').innerHTML='';
     order.forEach(k=>{
       const g=groups[k]||[];
       const n=g.length;
@@ -1014,7 +1082,7 @@
       const longest = longestStreakFor(g);
       const tr=document.createElement('tr');
       tr.innerHTML=`<td>${k}</td><td class="right">${n}</td><td class="right">${n?longest:'—'}</td><td class="right">${n?mk.toFixed(0)+'%':'—'}</td>`;
-      stats.bucketRows.appendChild(tr);
+      $('#bucketRows').appendChild(tr);
     });
 
     if(!filters().sid){
@@ -1032,16 +1100,21 @@
 
     // Summary
     const attempts = rows.length;
+    an = rows.filter(r=>r.made).length;
     const makes = rows.filter(r=>r.made).length;
     const makePct = attempts ? ((makes/attempts)*100).toFixed(1) : '0.0';
-    // Avg miss leave in inches
+
+    // Avg miss derived leave in inches + total time
     const missRows = rows.filter(r=>!r.made);
-    const sumIn = missRows.reduce((s,r)=>{
-      if(typeof r.depth_in==='number') return s+Math.abs(r.depth_in);
-      const ft = Number(r.leave_ft)||Math.abs(Number(r.depth_ft)||0);
-      return s + Math.round(ft*12);
-    },0);
-    const avgMissIn = missRows.length ? Math.round(sumIn / missRows.length) : 0;
+    const sumAbsLeaveIn = missRows.reduce((s,r)=>s+derivedLeaveAbsIn(r),0);
+    const avgMissIn = missRows.length ? (Math.round((sumAbsLeaveIn/missRows.length)*10)/10).toFixed(1) : '0.0';
+
+    const avgDepthSigned = missRows.length ? (missRows.reduce((s,r)=>s+signedDepthIn(r),0)/missRows.length) : 0;
+    const avgLatSigned   = missRows.length ? (missRows.reduce((s,r)=>s+signedLatIn(r),0)/missRows.length) : 0;
+    const th=0.25;
+    const depthWord = Math.abs(avgDepthSigned)<th ? 'center' : (avgDepthSigned>0?'long':'short');
+    const latWord   = Math.abs(avgLatSigned)<th   ? 'center' : (avgLatSigned>0?'right':'left');
+    const parts=[]; if(depthWord!=='center') parts.push(depthWord); if(latWord!=='center') parts.push(latWord);
 
     // Duration
     const startTs = session?.started_at || rows[0]?.ts;
@@ -1057,7 +1130,7 @@
     const stimp = session?.stimp || rows[0]?.stimp || '';
 
     stats.sdTitle.textContent = label;
-    stats.sdMeta.textContent = `Drill: ${drill || '—'}${hand?` • Hand: ${hand}`:''}${stimp?` • Stimp: ${stimp}`:''} • Time: ${dur} • Attempts: ${attempts} • Makes: ${makes} (${makePct}%) • Avg miss leave: ${missRows.length?avgMissIn:'—'} in`;
+    stats.sdMeta.textContent = `Drill: ${drill || '—'}${hand?` • Hand: ${hand}`:''}${stimp?` • Stimp: ${stimp}`:''} • Time: ${dur} • Attempts: ${attempts} • Makes: ${makes} (${makePct}%) • Avg miss leave: ${missRows.length?avgMissIn:'—'}″${parts.length?` (${parts.join(' and ')})`:''}`;
 
     // Table
     stats.sdBody.innerHTML='';
@@ -1065,8 +1138,9 @@
       const d=new Date(r.ts);
       const depthIn = (typeof r.depth_in==='number') ? r.depth_in : Math.round((r.depth_ft||0)*12);
       const latIn   = (typeof r.lat_in==='number')   ? r.lat_in   : (r.lateral==='L'?-1:(r.lateral==='R'?1:0));
+      const leaveIn = derivedLeaveSignedIn(r);
       const tr=document.createElement('tr');
-      tr.innerHTML = `<td>${i+1}</td><td>${fmtTime(d)}</td><td>${(r.distance_ft||0).toFixed(1)} ft</td><td>${r.made?'Yes':'No'}</td><td>${depthIn}"</td><td>${latIn}"</td><td>${(r.leave_ft||0).toFixed(1)}</td>`;
+      tr.innerHTML = `<td>${i+1}</td><td>${fmtTime(d)}</td><td>${(r.distance_ft||0).toFixed(1)} ft</td><td>${r.made?'Yes':'No'}</td><td>${depthIn}"</td><td>${latIn}"</td><td>${leaveIn}"</td>`;
       stats.sdBody.appendChild(tr);
     });
 
@@ -1106,24 +1180,44 @@
   function toggleSheet(on){ $('#moreSheet').classList.toggle('show', !!on); }
   $('#msClose').onclick=()=>toggleSheet(false);
 
+  // SESSION CSV — inches for depth/lat/leave (derived, signed)
   $('#msExportSession').onclick=async ()=>{
     const sid=$('#sessionPick').value; if(!sid){ alert('Pick a session in the Stats filter first.'); return; }
     const rows=await idbGetPuttsBySession(sid);
-    const cols=['session_id','date','drill','hand','stimp','distance_ft','made','depth_ft','depth_in','lateral','lat_in','leave_ft'];
+    const cols=['session_id','date','drill','hand','stimp','distance_ft','made','depth_in','lat_in','leave_in'];
     const out=[cols];
-    rows.forEach(r=>{ const d=new Date(r.ts); out.push([r.sessionId, `${d.toISOString().slice(0,10)}`, r.drill||'', r.hand||'', r.stimp||'', r.distance_ft, r.made?1:0, r.depth_ft||'', r.depth_in||'', r.lateral||'', r.lat_in||'', r.leave_ft||'']); });
+    rows.forEach(r=>{
+      const d=new Date(r.ts);
+      const depthIn = (typeof r.depth_in==='number') ? r.depth_in : Math.round((r.depth_ft||0)*12);
+      const latIn   = (typeof r.lat_in==='number')   ? r.lat_in   : (r.lateral==='L'?-1:(r.lateral==='R'?1:0));
+      const leaveIn = (typeof r.leave_in==='number') ? r.leave_in : (function(){
+        const mag=Math.round(Math.hypot(depthIn,latIn)); return depthIn<0?-mag:(depthIn>0?mag:mag);
+      })();
+      out.push([r.sessionId, `${d.toISOString().slice(0,10)}`, r.drill||'', r.hand||'', r.stimp||'', r.distance_ft, r.made?1:0, depthIn, latIn, leaveIn]);
+    });
     const csv=out.map(row=>row.map(sanitizeCsvCell).join(',')).join('\n');
     download('indoor_putting_session.csv', new Blob(["\ufeff"+csv],{type:'text/csv;charset=utf-8;'}));
     toggleSheet(false);
   };
 
+  // STATS CSV — by distance_ft, avg_miss_leave_in (derived)
   $('#msExportStats').onclick=async ()=>{
     const selRows=applyFilters(PUTTS);
-    const byD=new Map(); selRows.forEach(r=>{const key=(Math.round((Number(r.distance_ft)||0)*2)/2).toFixed(1); const e=byD.get(key)||{attempts:0,made:0,leave:0}; e.attempts++; e.made+=r.made?1:0; e.leave+=Number(r.leave_ft)||0; byD.set(key,e);});
-    const out=[['distance_ft','attempts','made','make_pct','avg_leave_ft']];
+    const byD=new Map();
+    selRows.forEach(r=>{
+      const key=(Math.round((Number(r.distance_ft)||0)*2)/2).toFixed(1);
+      const e=byD.get(key)||{attempts:0,made:0,misses:0,missLeaveInSum:0};
+      e.attempts++;
+      if(r.made){ e.made++; }
+      else { e.misses++; e.missLeaveInSum += derivedLeaveAbsIn(r); }
+      byD.set(key,e);
+    });
+    const out=[['distance_ft','attempts','made','make_pct','avg_miss_leave_in']];
     Array.from(byD.keys()).sort((a,b)=>parseFloat(a)-parseFloat(b)).forEach(k=>{
-      const e=byD.get(k); const mk=e.attempts?(e.made/e.attempts*100):0; const avg=e.attempts?(e.leave/e.attempts):0;
-      out.push([k,e.attempts,e.made,mk.toFixed(1),avg.toFixed(2)]);
+      const e=byD.get(k);
+      const mk=e.attempts?(e.made/e.attempts*100):0;
+      const avgIn=e.misses?(e.missLeaveInSum/e.misses):0;
+      out.push([k,e.attempts,e.made,mk.toFixed(1),(Math.round(avgIn*10)/10).toFixed(1)]);
     });
     const csv=out.map(r=>r.map(sanitizeCsvCell).join(',')).join('\n');
     download('indoor_putting_stats.csv', new Blob(["\ufeff"+csv],{type:'text/csv;charset=utf-8;'}));
@@ -1201,6 +1295,9 @@
     if(!el) return;
     el.addEventListener('pointerdown', ()=> haptic(HAPTIC_MAP[id]), {passive:true});
   });
+
+  // Kick off
+  initStats();
 })();
 </script>
 </body>
