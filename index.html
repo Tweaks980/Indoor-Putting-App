@@ -261,7 +261,7 @@
     <div class="row" style="margin-top:6px;align-items:end">
       <div class="field">
         <span class="lbl"> </span>
-        <button class="btn success" id="beginBtn">Begin</button>
+        <button class="btn success" id="beginBtn">Start Drill</button>
       </div>
       <div class="field">
         <span class="lbl"> </span>
@@ -300,7 +300,7 @@
     <!-- Holed / Log Miss / Undo -->
     <div class="actions3">
       <button class="btn success" id="padHoled">Holed</button>
-      <button class="btn primary" id="logMiss">Miss</button>
+      <button class="btn primary" id="logMiss">Missed</button>
       <button class="btn" id="undoLast">Undo Last</button>
     </div>
 
@@ -348,7 +348,7 @@
     </div>
     <!-- Actions: Open + Delete -->
     <div class="row" style="margin-top:6px">
-      <button class="btn" id="btnOpenSession" disabled>Open Session</button>
+      <button class="btn" id="btnOpenSession" disabled>View Session</button>
       <button class="btn danger" id="btnDeleteSession" disabled>Delete Session</button>
     </div>
   </div>
@@ -446,6 +446,51 @@
 
 <!-- ===== App + Firestore (module) ===== -->
 <script type="module">
+/* ------------------ Firestore toggle & config ------------------ */
+/** Set to true to enable Firestore cloud sync */
+const USE_FIRESTORE = true;
+
+/** Paste your Firebase web app config here (from Firebase Console) */
+const FIREBASE_CONFIG = {
+  apiKey: "PASTE_API_KEY",
+  authDomain: "PASTE_AUTH_DOMAIN",
+  projectId: "PASTE_PROJECT_ID",
+  appId: "PASTE_APP_ID",
+  // Optional:
+  // storageBucket: "...",
+  // messagingSenderId: "..."
+};
+
+/* ---- Firebase SDK imports (loaded only if USE_FIRESTORE) ---- */
+let firebase = null; // { app, auth, db, signedIn }
+if (USE_FIRESTORE && FIREBASE_CONFIG && FIREBASE_CONFIG.projectId && FIREBASE_CONFIG.apiKey) {
+  const [{ initializeApp }]   = await Promise.all([import('https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js')]);
+  const [
+    { getAuth, signInAnonymously, onAuthStateChanged }
+  ] = await Promise.all([import('https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js')]);
+  const [
+    { getFirestore, doc, setDoc, getDocs, collection, writeBatch, enableIndexedDbPersistence }
+  ] = await Promise.all([import('https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js')]);
+
+  const app = initializeApp(FIREBASE_CONFIG);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // Optional: Firestore's own offline persistence (separate from our app's IDB)
+  try { await enableIndexedDbPersistence(db); } catch(_) {}
+
+  // Anonymous sign-in
+  let signedIn = null;
+  try { await signInAnonymously(auth); } catch(_) {}
+  onAuthStateChanged(auth, (u)=>{ signedIn = u || null; });
+
+  firebase = {
+    app, auth, db,
+    get uid(){ return auth?.currentUser?.uid || null; },
+    get signedIn(){ return !!(auth?.currentUser); },
+    doc, setDoc, getDocs, collection, writeBatch
+  };
+}
 
 /* ------------------ Helpers ------------------ */
 const pad2=n=>String(n).padStart(2,'0');
