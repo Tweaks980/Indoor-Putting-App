@@ -286,9 +286,9 @@
     <div class="board">
       <div class="tile"><div class="k">HIT FROM (ft)</div><div class="v" id="boardDist">—</div></div>
       <div class="tile"><div class="k">TIME</div><div class="v" id="boardTime">00:00</div></div>
-      <div class="tile"><div class="k">SCORE</div><div class="v" id="boardScore">0</div></div>
+      <div class="tile"><div class="k">HOLED</div><div class="v" id="boardScore">0</div></div>
     </div>
-    <div class="tile" style="margin-top:8px"><div class="k">SHOT</div><div class="v" id="boardShot">0</div></div>
+    <div class="tile" style="margin-top:8px"><div class="k">ATTEMPTS</div><div class="v" id="boardShot">0</div></div>
 
     <!-- Previous Shot block hidden by default -->
     <div class="panel hidden" style="margin:10px 0;background:#0a1410;border-color:#1b2620">
@@ -474,9 +474,10 @@
 /* ---------- Firebase setup ---------- */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInAnonymously, signOut } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, getDocs, collection, writeBatch, query, where } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDocs, collection, writeBatch } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
-/* Your Firebase project (from your snippet) */
+/* Your Firebase project (same as before). Make sure this key is referrer-restricted in Google Cloud Console:
+   http(s)://localhost/*, http://127.0.0.1/*, your GitHub Pages domain, etc. */
 const firebaseConfig = {
   apiKey: "AIzaSyBesf0Vh0Omn5sWKlA7hkPtzPBe6rk1e88",
   authDomain: "indoor-putting-app.firebaseapp.com",
@@ -536,7 +537,7 @@ show(location.hash||'#/home');
 const DB='indoor_putting';
 function openDB(){
   return new Promise((res,rej)=>{
-    const req=indexedDB.open(DB);
+    const req=indexedDB.open(DB);  // no explicit version to avoid downgrade errors
     req.onupgradeneeded=()=>{
       const db=req.result;
       if(!db.objectStoreNames.contains('sessions')) db.createObjectStore('sessions',{keyPath:'id'});
@@ -1225,9 +1226,9 @@ $('#msExportJSON').onclick=async ()=>{
   toggleSheet(false);
 };
 
-/* Replace import (existing behavior) */
+/* Replace import */
 $('#msImportJSON').onclick=()=>{ $('#importJSONInput').click(); $('#importJSONInput').dataset.mode='replace'; toggleSheet(false); };
-/* Merge import (new) */
+/* Merge import */
 $('#msImportJSONMerge').onclick=()=>{ $('#importJSONInput').click(); $('#importJSONInput').dataset.mode='merge'; toggleSheet(false); };
 
 $('#importJSONInput').addEventListener('change', async (e)=>{
@@ -1247,24 +1248,22 @@ $('#importJSONInput').addEventListener('change', async (e)=>{
       alert('Import complete (data replaced).');
     }else{
       // MERGE: upsert sessions by id; putts by (sessionId|ts)
+      const existingSessions = await idbAll('sessions');
+      const existingPutts    = await idbAll('putts');
+      const sessIds = new Set(existingSessions.map(s=>s.id));
+      const puttKeys = new Set(existingPutts.map(p=>(p.sessionId||'')+'|'+(p.ts||'')));
+
       const db=await openDB();
       await new Promise((res,rej)=>{
         const tx=db.transaction(['sessions','putts'],'readwrite');
         const stS=tx.objectStore('sessions'); const stP=tx.objectStore('putts');
 
-        // cache existing for fast dedupe
-        const sessIds=new Set(); const puttKeys=new Set();
-        const t1=db.transaction('sessions','readonly').objectStore('sessions').openCursor();
-        t1.onsuccess=(ev)=>{const c=ev.target.result; if(c){sessIds.add(c.value.id); c.continue();}};
-        const t2=db.transaction('putts','readonly').objectStore('putts').openCursor();
-        t2.onsuccess=(ev)=>{const c=ev.target.result; if(c){puttKeys.add((c.value.sessionId||'')+'|'+(c.value.ts||'')); c.continue();}};
-        t2.oncomplete = t1.oncomplete = ()=>{
-          (data.sessions||[]).forEach(s=>{ stS.put(s); sessIds.add(s.id); });
-          (data.putts||[]).forEach(p=>{
-            const key=(p.sessionId||'')+'|'+(p.ts||'');
-            if(!puttKeys.has(key)) stP.add(p);
-          });
-        };
+        (data.sessions||[]).forEach(s=> stS.put(s));
+        (data.putts||[]).forEach(p=>{
+          const key=(p.sessionId||'')+'|'+(p.ts||'');
+          if(!puttKeys.has(key)) stP.add(p);
+        });
+
         tx.oncomplete=()=>{ db.close(); res(); };
         tx.onerror=()=> rej(tx.error||new Error('merge failed'));
       });
@@ -1300,12 +1299,7 @@ applyHashParams();
 function haptic(kind='neutral'){
   try{
     if(!('vibrate' in navigator)) return;
-    const patterns={
-      neutral:[12],
-      success:[12,40,12],
-      warn:[8,30,8],
-      danger:[30,60,30]
-    };
+    const patterns={ neutral:[12], success:[12,40,12], warn:[8,30,8], danger:[30,60,30] };
     navigator.vibrate(patterns[kind]||patterns.neutral);
   }catch(_){}
 }
@@ -1351,7 +1345,7 @@ signInAnonymously(auth).catch(err=>{
 
 stats.btnSignOut.onclick = ()=> signOut(auth).catch(console.error);
 
-/* Push local → Cloud (sessions & putts), then Pull cloud → Local (merge) */
+/* Push local → Cloud, then Pull cloud → Local (merge) */
 async function syncWithCloud(){
   if(!currentUID){ setCloudStatus('Cloud: not signed in', false); return; }
   try{
@@ -1391,27 +1385,21 @@ async function syncWithCloud(){
     const puttSnap = await getDocs(collection(db,'users',currentUID,'putts'));
     const cloudPutts = puttSnap.docs.map(d=>d.data());
 
-    // merge to IDB
+    // build dedupe sets from local
+    const existingSessions = await idbAll('sessions');
+    const existingPutts    = await idbAll('putts');
+    const puttKeys = new Set(existingPutts.map(p=>(p.sessionId||'')+'|'+(p.ts||'')));
+
     const dbi=await openDB();
     await new Promise((res,rej)=>{
       const tx=dbi.transaction(['sessions','putts'],'readwrite');
       const stS=tx.objectStore('sessions'); const stP=tx.objectStore('putts');
 
-      const sessIds=new Set(); const puttKeys=new Set();
-
-      const t1=dbi.transaction('sessions','readonly').objectStore('sessions').openCursor();
-      t1.onsuccess=(ev)=>{const c=ev.target.result; if(c){sessIds.add(c.value.id); c.continue();}};
-
-      const t2=dbi.transaction('putts','readonly').objectStore('putts').openCursor();
-      t2.onsuccess=(ev)=>{const c=ev.target.result; if(c){puttKeys.add((c.value.sessionId||'')+'|'+(c.value.ts||'')); c.continue();}};
-
-      t2.oncomplete = t1.oncomplete = ()=>{
-        cloudSessions.forEach(s=> stS.put(s));
-        cloudPutts.forEach(p=>{
-          const key=(p.sessionId||'')+'|'+(p.ts||'');
-          if(!puttKeys.has(key)) stP.add(p);
-        });
-      };
+      cloudSessions.forEach(s=> stS.put(s)); // upsert
+      cloudPutts.forEach(p=>{
+        const key=(p.sessionId||'')+'|'+(p.ts||'');
+        if(!puttKeys.has(key)) stP.add(p);
+      });
 
       tx.oncomplete=()=>{ dbi.close(); res(); };
       tx.onerror=()=> rej(tx.error||new Error('cloud merge failed'));
